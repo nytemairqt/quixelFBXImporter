@@ -22,13 +22,13 @@ import bpy
 from mathutils import Vector
 
 #--------------------------------------------------------------
-# Operators
+# Functions
 #--------------------------------------------------------------	
 
 def _importMesh(filepath):
 	# Imports FBX file and makes it the active object
 	bpy.ops.import_scene.fbx(filepath=filepath)		
-	mesh = bpy.context.selected_objects[-1]		
+	mesh = bpy.context.selected_objects[0]		
 	bpy.context.view_layer.objects.active = mesh
 	mesh.select_set(True)
 	return mesh
@@ -108,7 +108,10 @@ def _setupMaterial(mesh, folder_path):
 			img.colorspace_settings.name = 'Non-Color'
 			material.node_tree.links.new(tex_node.outputs['Color'], bump_node.inputs['Height'])
 			tex_node.location = Vector((-600.0, 0.0))
-	return 
+
+#--------------------------------------------------------------
+# Operators
+#--------------------------------------------------------------	
 
 class QUIXELFBXIMPORTER_OT_importFBX(bpy.types.Operator):
 	bl_idname = 'quixelfbximporter.import_fbx'
@@ -143,11 +146,13 @@ class QUIXELFBXIMPORTER_OT_batchImportFBX(bpy.types.Operator):
 	filepath: bpy.props.StringProperty(subtype="DIR_PATH")
 
 	def execute(self, context):
-
 		subfolders = [f.path for f in os.scandir(self.filepath) if f.is_dir()]
-
-		print(subfolders)
-
+		for folder in subfolders:
+			with os.scandir(folder) as entries:
+				for entry in entries:
+					if entry.is_file() and entry.name.endswith('.fbx'):
+						mesh = _importMesh(entry.path)
+						_setupMaterial(mesh, folder)
 		return{'FINISHED'}
 
 	def invoke(self, context, event):
