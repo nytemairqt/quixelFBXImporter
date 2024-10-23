@@ -119,7 +119,7 @@ class QUIXELFBXIMPORTER_OT_importFBX(bpy.types.Operator):
 	bl_options = {'REGISTER', 'UNDO'}
 	bl_description = 'Import FBX'
 
-	filepath: bpy.props.StringProperty(subtype="FILE_PATH")
+	filepath: bpy.props.StringProperty(subtype="FILE_PATH", default="")
 
 	def execute(self, context):
 		folder_path = os.path.dirname(self.filepath)
@@ -135,7 +135,17 @@ class QUIXELFBXIMPORTER_OT_importFBX(bpy.types.Operator):
 
 	def invoke(self, context, event):
 		context.window_manager.fileselect_add(self)
+		bpy.app.timers.register(self.clear_filename, first_interval=0.1)
 		return {'RUNNING_MODAL'}
+
+	def clear_filename(self):
+	# Ensure filename field is cleared after the file browser is open
+		try:
+			bpy.data.screens['temp'].areas[0].spaces.active.params.filename = ""
+			return None  # Stop the timer
+		except Exception as e:
+			# Retry clearing the filename field if the file browser isn't fully ready
+			return 0.1  # Retry after 0.1 seconds
 
 class QUIXELFBXIMPORTER_OT_batchImportFBX(bpy.types.Operator):
 	bl_idname = 'quixelfbximporter.batch_import_fbx'
@@ -143,7 +153,7 @@ class QUIXELFBXIMPORTER_OT_batchImportFBX(bpy.types.Operator):
 	bl_options = {'REGISTER', 'UNDO'}
 	bl_description = 'Batch Import FBX'
 
-	filepath: bpy.props.StringProperty(subtype="DIR_PATH")
+	filepath: bpy.props.StringProperty(subtype="DIR_PATH", default="")
 
 	def execute(self, context):
 		subfolders = [f.path for f in os.scandir(self.filepath) if f.is_dir()]
@@ -157,7 +167,17 @@ class QUIXELFBXIMPORTER_OT_batchImportFBX(bpy.types.Operator):
 
 	def invoke(self, context, event):
 		context.window_manager.fileselect_add(self)
-		return {'RUNNING_MODAL'}		
+		bpy.app.timers.register(self.clear_filename, first_interval=0.1)
+		return {'RUNNING_MODAL'}
+
+	def clear_filename(self):
+	# Ensure filename field is cleared after the file browser is open
+		try:
+			bpy.data.screens['temp'].areas[0].spaces.active.params.filename = ""
+			return None  # Stop the timer
+		except Exception as e:
+			# Retry clearing the filename field if the file browser isn't fully ready
+			return 0.1  # Retry after 0.1 seconds				
 	
 
 #--------------------------------------------------------------
