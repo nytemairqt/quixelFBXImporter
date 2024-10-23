@@ -128,7 +128,9 @@ class QUIXELFBXIMPORTER_OT_importFBX(bpy.types.Operator):
 			self.report({'WARNING'}, "No folder selected")
 			return {'CANCELLED'}
 
+		file_name = os.path.splitext(os.path.basename(folder_path))[0]
 		mesh = _importMesh(self.filepath)
+		mesh.name = file_name
 		_setupMaterial(mesh, folder_path)
 
 		return{'FINISHED'}
@@ -161,7 +163,9 @@ class QUIXELFBXIMPORTER_OT_batchImportFBX(bpy.types.Operator):
 			with os.scandir(folder) as entries:
 				for entry in entries:
 					if entry.is_file() and entry.name.endswith('.fbx'):
+						file_name = os.path.splitext(os.path.basename(entry))[0]
 						mesh = _importMesh(entry.path)
+						mesh.name = file_name
 						_setupMaterial(mesh, folder)
 		return{'FINISHED'}
 
