@@ -19,11 +19,19 @@ bl_info = {
 
 import os
 import bpy
-from bpy_extras.io_utils import ImportHelper
+from mathutils import Vector
 
 #--------------------------------------------------------------
 # Operators
 #--------------------------------------------------------------	
+
+def _importTextures(params=[]):
+	bpy.ops.node.nw_add_textures_for_principled(
+	filepath=params[1],
+	directory=params[2],
+	files=params[3],
+	relative_path=params[4]
+	)
 
 class QUIXELFBXIMPORTER_OT_importFBX(bpy.types.Operator):
 	bl_idname = 'quixelfbximporter.import_fbx'
@@ -53,38 +61,74 @@ class QUIXELFBXIMPORTER_OT_importFBX(bpy.types.Operator):
 		material = bpy.data.materials.new(name="quixelMat")
 		material.use_nodes = True
 		imported_object.data.materials.append(material)
+		bsdf = material.node_tree.nodes.get("Principled BSDF")
+		material_output = material.node_tree.nodes.get("Material Output")
+		bump_node = material.node_tree.nodes.new("ShaderNodeBump")
+		bump_node.inputs['Strength'].default_value = 0.1
+		bump_node.location = Vector((-300.0, 0.0))
+		bump_node.hide = True
+		material.node_tree.links.new(bump_node.outputs['Normal'], bsdf.inputs['Normal'])
 
 		# Look for texture files
-		texture_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-		if texture_files:
-			bsdf = material.node_tree.nodes.get("Principled BSDF")
-			tex_dir = folder_path
+		texture_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]	
 
-			for tex_file in texture_files:
-				tex_file_path = os.path.join(tex_dir, tex_file)
-				img = bpy.data.images.load(tex_file_path)
-				tex_node = material.node_tree.nodes.new('ShaderNodeTexImage')
-				tex_node.image = img
-				material.node_tree.links.new(bsdf.inputs['Base Color'], tex_node.outputs['Color'])
-                
-                # Map roughness, normal, etc. (simple example)
-				if 'roughness' in tex_file.lower():
-					material.node_tree.links.new(bsdf.inputs['Roughness'], tex_node.outputs['Color'])
-				if 'normal' in tex_file.lower():
-					normal_map = material.node_tree.nodes.new('ShaderNodeNormalMap')
-					material.node_tree.links.new(normal_map.inputs['Color'], tex_node.outputs['Color'])
-					material.node_tree.links.new(bsdf.inputs['Normal'], normal_map.outputs['Normal'])
-				if 'displacement' in tex_file.lower():
-					displacement_node = material.node_tree.nodes.new('ShaderNodeDisplacement')
-					material.node_tree.links.new(displacement_node.inputs['Height'], tex_node.outputs['Color'])
-					material.node_tree.links.new(material.node_tree.nodes.get('Material Output').inputs['Displacement'], displacement_node.outputs['Displacement'])
+		if not texture_files:
+			self.report({'WARNING'}, 'Unable to find texture files, skipping.')
+			return{"FINISHED"}	
 
+		# Drop unneeded files
+		for tex in texture_files:
+			if 'roughness' in tex.lower():
+				texture_files.remove(tex)
+			if 'ao' in tex.lower():
+				texture_files.remove(tex)
+			if 'fuzz' in tex.lower():
+				texture_files.remove(tex)
+			if 'cavity' in tex.lower():
+				texture_files.remove(tex)
 
-		# Call NodeWrangler operator
-		#print(f'FilePath = {texture_files[0]}, directory={folder_path}')
+		for tex in texture_files:
+			tex_file_path = os.path.join(folder_path, tex)
+			img = bpy.data.images.load(tex_file_path)
+			tex_node = material.node_tree.nodes.new('ShaderNodeTexImage')
+			tex_node.image = img
+			tex_node.hide = True 
 
-		#bpy.ops.node.nw_add_textures_for_principled(filepath=texture_files[0], directory=folder_path, files=[{"name":"cavefloor1_Ambient_Occlusion.png", "name":"cavefloor1_Ambient_Occlusion.png"}, {"name":"cavefloor1_Base_Color.png", "name":"cavefloor1_Base_Color.png"}, {"name":"cavefloor1_Height.png", "name":"cavefloor1_Height.png"}, {"name":"cavefloor1_Metallic.png", "name":"cavefloor1_Metallic.png"}, {"name":"cavefloor1_Normal.png", "name":"cavefloor1_Normal.png"}, {"name":"cavefloor1_Roughness.png", "name":"cavefloor1_Roughness.png"}], relative_path=True)
-		#bpy.ops.node.nw_add_textures_for_principled(filepath="D:\\Pictures\\textures\\FreePBR\\cave_floor\\cavefloor1_Ambient_Occlusion.png", directory="D:\\Pictures\\textures\\FreePBR\\cave_floor\\", files=[{"name":"cavefloor1_Ambient_Occlusion.png", "name":"cavefloor1_Ambient_Occlusion.png"}, {"name":"cavefloor1_Base_Color.png", "name":"cavefloor1_Base_Color.png"}, {"name":"cavefloor1_Height.png", "name":"cavefloor1_Height.png"}, {"name":"cavefloor1_Metallic.png", "name":"cavefloor1_Metallic.png"}, {"name":"cavefloor1_Normal.png", "name":"cavefloor1_Normal.png"}, {"name":"cavefloor1_Roughness.png", "name":"cavefloor1_Roughness.png"}], relative_path=True)
+			if 'basecolor' in tex.lower():
+				material.node_tree.links.new(tex_node.outputs['Color'], bsdf.inputs['Base Color'])
+				tex_node.location = Vector((-300.0, 300.0))
+			if 'specular' in tex.lower():
+				img.colorspace_settings.name = 'Non-Color' # might be node-based instead...
+				material.node_tree.links.new(tex_node.outputs['Color'], bsdf.inputs['Specular IOR Level'])
+				tex_node.location = Vector((-300.0, 100.0))
+			if 'gloss' in tex.lower():
+				img.colorspace_settings.name = 'Non-Color'
+				invert = material.node_tree.nodes.new('ShaderNodeInvert')
+				invert.hide = True 
+				material.node_tree.links.new(tex_node.outputs['Color'], invert.inputs['Color'])
+				material.node_tree.links.new(invert.outputs['Color'], bsdf.inputs['Roughness'])
+				invert.location = Vector((-300.0, 250.0))
+				tex_node.location = Vector((-600.0, 250.0))
+			if 'displacement' in tex.lower():
+				img.colorspace_settings.name = 'Non-Color'
+				displacement = material.node_tree.nodes.new('ShaderNodeDisplacement')
+				displacement.hide = True
+				material.node_tree.links.new(tex_node.outputs['Color'], displacement.inputs['Height'])
+				material.node_tree.links.new(displacement.outputs['Displacement'], material_output.inputs['Displacement'])
+				displacement.location = Vector((0.0, -400.0))
+				tex_node.location = Vector((-300.0, -400.0))
+			if 'normal' in tex.lower():
+				img.colorspace_settings.name = 'Non-Color'
+				normal_map = material.node_tree.nodes.new('ShaderNodeNormalMap')
+				normal_map.hide = True 
+				material.node_tree.links.new(tex_node.outputs['Color'], normal_map.inputs['Color'])
+				material.node_tree.links.new(normal_map.outputs['Normal'], bump_node.inputs['Normal'])
+				normal_map.location = Vector((-300.0, -200.0))
+				tex_node.location = Vector((-600.0, -200.0))
+			if 'bump' in tex.lower():
+				img.colorspace_settings.name = 'Non-Color'
+				material.node_tree.links.new(tex_node.outputs['Color'], bump_node.inputs['Height'])
+				tex_node.location = Vector((-600.0, 0.0))			
 
 		return{'FINISHED'}
 
