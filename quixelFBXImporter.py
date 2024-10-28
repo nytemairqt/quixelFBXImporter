@@ -193,7 +193,7 @@ class QUIXELFBXIMPORTER_OT_applyRotationAndScale(bpy.types.Operator):
 		bpy.ops.object.select_all(action='DESELECT')
 		bpy.ops.object.select_all(action='SELECT')
 		bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-		self.report({'WARNING'}, "Applied rotation & scale to all scene objects.")
+		self.report({'INFO'}, "Applied rotation & scale to all scene objects.")
 		return{'FINISHED'}
 	
 
