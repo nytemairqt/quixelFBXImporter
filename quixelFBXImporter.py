@@ -181,7 +181,20 @@ class QUIXELFBXIMPORTER_OT_batchImportFBX(bpy.types.Operator):
 			return None  # Stop the timer
 		except Exception as e:
 			# Retry clearing the filename field if the file browser isn't fully ready
-			return 0.1  # Retry after 0.1 seconds				
+			return 0.1  # Retry after 0.1 seconds		
+
+class QUIXELFBXIMPORTER_OT_applyRotationAndScale(bpy.types.Operator):
+	bl_idname = 'quixelfbximporter.apply_rotation_and_scale'
+	bl_label = 'Apply Rotation & Scale'
+	bl_options = {'REGISTER', 'UNDO'}
+	bl_description = 'Apply Rotation & Scale'
+
+	def execute(self, context):
+		bpy.ops.object.select_all(action='DESELECT')
+		bpy.ops.object.select_all(action='SELECT')
+		bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+		self.report({'WARNING'}, "Applied rotation & scale to all scene objects.")
+		return{'FINISHED'}
 	
 
 #--------------------------------------------------------------
@@ -209,13 +222,16 @@ class QUIXELFBXIMPORTER_PT_panelMain(bpy.types.Panel):
 
 		row = layout.row()
 		button_batch_import_fbx = row.operator(QUIXELFBXIMPORTER_OT_batchImportFBX.bl_idname, text="Batch Import FBX", icon="FILE_FOLDER")
+
+		row = layout.row()
+		button_apply_rotation_and_scale = row.operator(QUIXELFBXIMPORTER_OT_applyRotationAndScale.bl_idname, text='Apply Rotation & Scale', icon='DUPLICATE')
 		
 #--------------------------------------------------------------
 # Register 
 #--------------------------------------------------------------
 
 classes_interface = (QUIXELFBXIMPORTER_PT_panelMain,)
-classes_functionality = (QUIXELFBXIMPORTER_OT_importFBX, QUIXELFBXIMPORTER_OT_batchImportFBX)
+classes_functionality = (QUIXELFBXIMPORTER_OT_importFBX, QUIXELFBXIMPORTER_OT_batchImportFBX, QUIXELFBXIMPORTER_OT_applyRotationAndScale)
 
 def register():
 
